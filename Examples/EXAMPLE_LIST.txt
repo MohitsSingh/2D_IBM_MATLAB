@@ -30,6 +30,8 @@ GitHub: http://www.github.com/nickabattista
                    changing resting lengths of springs
             ex3: - heart tube that pumps via peristaltic waves of contraction 
                    by changing resting lengths of springs
+            ex4: - heart that pumps via muscle activation by 3-element Hill Model
+                   combined with a length-tension/force-velocity
     5. "Lymphangion" - tube that pumps via muscle activation using combined a
                    hybrid length/tension and Hill model
     6. "Channel_Flow" - various channel flow examples with parabolic flow being 
@@ -55,6 +57,16 @@ GitHub: http://www.github.com/nickabattista
     10. "Porous_Rubberband" - added porosity to standard rubberband problem
             ex1: - Single porous rubberband example
             ex2: - Comparing porous to non-porous rubberband
+    11. "Concentration_Gradients"
+            ex1: - Concentration gradient in birfuracting artery
+            ex2: - Pure Diffusion of Passive Scalar in Box
+    12. "Jellyfish_Swimming"
+            ex1: - Bell composed entirely of springs, motion driven by updating
+                   resting lengths sinusoidally
+            ex2: - Bell composed of beams and springs
+            ex3: - Bell motion driven by interpolating between resting lengths
+                   for two phases.
+            NOTE: not entirely debugged, yet. 
 
 %*****************************************************************************%
 %*********************************% NOTES! %**********************************%
@@ -62,8 +74,9 @@ GitHub: http://www.github.com/nickabattista
 
 -It has the ability to read in Lagrangian Point Data (.vertex), Springs 
 	(.spring), Torsional Springs (.beam),  Target Pts (.target), and 
-	Muscle Pts (.muscle), Tracer Particles (.tracer), Mass Points (.mass), and
-    Porous Media (.porous)!  
+	Muscle Pts (.muscle), 3-Hill-Muscle-Pts (.muscle_Hill), 
+    Tracer Particles (.tracer), Mass Points (.mass), and  Porous Media (.porous), 
+    and initial concentration (.concentration)!  
 
 -It has the capabilitiy for updating model data:
     a. updating target point positions -> Example in Moving_Rubberband & 
@@ -79,4 +92,7 @@ GitHub: http://www.github.com/nickabattista
 -You can choose to have gravity exerting forced (yes/no) as well as prescribe
     the direction of gravitational influence in any direction you'd wish, 
     in input2d
+
+-You can have a background concentration gradient that is advected and diffused
+    via the background flow.
 

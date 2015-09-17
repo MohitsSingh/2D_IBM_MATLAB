@@ -25,20 +25,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% FUNCTION: creates the CHANNEL_CHANNEL-EXAMPLE geometry and prints associated input files
+% FUNCTION: creates the BIFURCATING_ARTERY-EXAMPLE geometry and prints associated input files
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function Channel_Channel()
+function Artery_Geometry()
 
 %
 % Grid Parameters (MAKE SURE MATCHES IN input2d !!!)
 %
 Nx =  128;        % # of Eulerian Grid Pts. in x-Direction (MUST BE EVEN!!!)
 Ny =  128;        % # of Eulerian Grid Pts. in y-Direction (MUST BE EVEN!!!)
-Lx = 2.0;        % Length of Eulerian Grid in x-Direction
-Ly = 2.0;        % Length of Eulerian Grid in y-Direction
-
+Lx = 2.0;         % Length of Eulerian Grid in x-Direction
+Ly = 2.0;         % Length of Eulerian Grid in y-Direction
+dx = Lx/Nx;       % Spatial step-size in x-Direction
+dy = Ly/Ny;       % Spatial step-size in y-Direction
 
 % Immersed Structure Geometric / Dynamic Parameters %
 ds= min(Lx/(2*Nx),Ly/(2*Ny));  % Lagrangian spacing
@@ -47,7 +48,7 @@ w = 0.15*Ly;                    % Width of Channel
 x0 = 0.4;                      % x-Center for Cylinder
 y0 = 1.0;                      % y-Center for Cylinder
 r = w/6;                       % Radii of Cylinder
-struct_name = 'channel'; % Name for .vertex, .spring, etc files.
+struct_name = 'artery'; % Name for .vertex, .spring, etc files.
 
 
 % Call function to construct BASE CHANNEL geometry
@@ -139,19 +140,31 @@ xLag = [XBot XTop];
 yLag = [YBot YTop];
 
 % Test Ordering!
-figure(2)
-for i=1:length(xLag)
-   plot(xLag(i),yLag(i),'*'); hold on;
-   axis([0 Lx 0 Ly]);
-   pause(0.0001)
-end
+% figure(2)
+% for i=1:length(xLag)
+%    plot(xLag(i),yLag(i),'*'); hold on;
+%    axis([0 Lx 0 Ly]);
+%    pause(0.0001)
+% end
+
+
+
+%
+% GIVES INITIAL CONCENTRATION 
+%
+C = give_Me_Initial_Concentration(Lx,Ly,Nx,Ny,dx,dy);
+
 
 
 % Prints .vertex file!
 print_Lagrangian_Vertices(xLag,yLag,struct_name);
 
+% Prints .concentration file!
+kDiffusion = 5e-4;
+print_Concentration_Info(Nx,Ny,C,kDiffusion,struct_name);
+
 % Prints .tracer file!
-print_Lagrangian_Tracers(xT,yT,struct_name)
+% print_Lagrangian_Tracers(xT,yT,struct_name)
 
 % Prints .spring file!
 %k_Spring = 1e7;
@@ -190,6 +203,27 @@ function print_Lagrangian_Vertices(xLag,yLag,struct_name)
 
     fclose(vertex_fid); 
 
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% FUNCTION: prints CONCENTRATION INFO to file called
+%           'struct_name'.concentration
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+function print_Concentration_Info(Nx,Ny,C,kDiffusion,struct_name)
+
+    con_fid = fopen([struct_name '.concentration'], 'w');
+
+    fprintf(con_fid, '%d\n', kDiffusion );
+
+    for i=1:Ny
+        for j=1:Nx
+            fprintf(con_fid, '%1.16e ', C(i,j) );
+        end
+        fprintf(con_fid,'\n');
+    end
+    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % FUNCTION: prints TRACER points to a file called rubberband.vertex
@@ -495,3 +529,98 @@ xT = [xR xRM xM xLM xL xR1 xR2 xR3 xR4 xR5 xR6 xR7 xR8 xR9 xR10 xR11 xR12 xR13 x
 yT = [y y y y y y y y y y y y y y y y y y y y y];
 
    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% FUNCTION: gives initial concentration gradient inside channel
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function C = give_Me_Initial_Concentration(Lx,Ly,Nx,Ny,dx,dy)
+
+%WHERE OUTER TUBE LIES
+%xMin = 0.15; xMax = 0.45;
+%yMin = 0.85; yMax = 1.15;
+
+xMin = 0.15; xMax = 0.45;
+yMin = 0.85; yMax = 1.15;
+
+xMid = (xMin+xMax)/2;
+yMid = (yMin+yMax)/2;
+
+xDiff = (xMax-xMin)/2;
+yDiff = (yMax-yMin)/2;
+
+x = 0:dx:Lx;
+y = 0:dy:Ly;
+inds = give_Me_Indices_To_Apply_Force(x,y,xMin,xMax,yMin,yMax);
+
+C = zeros(Ny,Nx);
+for i=1:length( inds(:,1) )
+    xInd = inds(i,1);
+    yInd = inds(i,2);
+    xPt = x(xInd);
+    yPt = y(yInd);
+    %C(xInd,yInd ) = (-0.5/yDiff^2)*( (yPt-yMid) - yDiff )*( (yPt-yMid) + yDiff ) +  (-0.5/xDiff^2)*( (xPt-xMid) - xDiff )*( (xPt-xMid) + xDiff ); %1.0;
+    C(xInd,yInd ) = (-1.0/xDiff^2)*( (xPt-xMid) - xDiff )*( (xPt-xMid) + xDiff ); %1.0;
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% FUNCTION: computes indices for placing initial concentration 
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function inds = give_Me_Indices_To_Apply_Force(x,y,xMin,xMax,yMin,yMax)
+
+j=1; noMinYet = 1;
+while noMinYet
+    
+    if ( x(j) >= xMin )
+        iX_min = j;
+        noMinYet = 0;
+    end
+    j=j+1;
+end
+
+j=length(x); noMaxYet = 1;
+while noMaxYet
+    
+    if ( x(j) <= xMax )
+        iX_max = j;
+        noMaxYet = 0;
+    end
+    j=j-1;
+end
+
+j=1; noMinYet = 1;
+while noMinYet
+    
+    if ( y(j) >= yMin )
+        iY_min = j;
+        noMinYet = 0;
+    end
+    j=j+1;
+end
+
+j=length(y); noMaxYet = 1;
+while noMaxYet
+    
+    if ( y(j) <= yMax )
+        iY_max = j;
+        noMaxYet = 0;
+    end
+    j=j-1;
+end
+
+iX_Vec = iX_min:1:iX_max;
+iY_Vec = iY_min:1:iY_max;
+
+n = 1;
+for i=1:length(iX_Vec)
+    for j=1:length(iY_Vec)
+        inds(n,1) = iX_Vec(i);
+        inds(n,2) = iY_Vec(j);
+        n = n+1; 
+    end
+end
