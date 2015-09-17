@@ -17,10 +17,12 @@ This code is capable of creating Lagrangian Structures using:
  	1. Springs
  	2. Beams (*torsional springs)
  	3. Target Points
-	4. Muscle-Model (combined Force-Length-Velocity model with a 
+	4. Muscle-Model 1 (combined Force-Length-Velocity model with a 
                         Hill (i.e.,Length-Tension) Model )
-        5. Mass Points (with or without influence of gravity)
-        6. Porous Structures 
+        5. 3-Element Hill Muscle (combined 3-element hill mode coupled w/
+                        Force-Velocity/Length-Tension Model)
+        6. Mass Points (with or without influence of gravity)
+        7. Porous Structures 
 
 One is able to update those Lagrangian Structure Parameters, e.g., spring constants, resting lengths, etc
  
@@ -41,19 +43,21 @@ If you use this code for the purposes of teaching, research, or recreation pleas
     4. You can change input data in the input2d data folder, or modify the 
        geometry in the specified geometry file
 
--THIS VERSION HAS 9 DIFFERENT FLAVORS OF EXAMPLES:
+-THIS VERSION HAS 11 DIFFERENT FLAVORS OF EXAMPLES:
     1. "Standard Rubberband" - only uses springs between Lagrangian pts.
     2. "Wobbly Beam" - torsional springs between Lagrangian pts, w/ fixed ends 
         via target points
     3. "Moving Rubberband" - rubberband moving along a zig-zag pattern, via 
         updating target point positions
-    4. "HeartTube" - examples of pumping in tubular hearts via updating_springs()
+    4. "HeartTube" - examples of pumping in tubular hearts
             ex1: - heart tube that pumps via muscle activation using combined 
                    length/tension - Hill model
             ex2: - heart tube that pumps via dynamic suction pumping by 
                    changing resting lengths of springs
             ex3: - heart tube that pumps via peristaltic waves of contraction 
                    by changing resting lengths of springs
+            ex4: - heart tube that pumps via muscle activation by 3-element 
+                   Hill Model combined w/ length-tension/force-velocity model
     5. "Lymphangion" - tube that pumps via muscle activation using combined a
                    hybrid length/tension and Hill model
     6. "Channel_Flow" - various channel flow examples with parabolic flow being 
@@ -79,11 +83,22 @@ If you use this code for the purposes of teaching, research, or recreation pleas
     10. "Porous_Rubberband" - added porosity to standard rubberband problem
             ex1: - Single porous rubberband example
             ex2: - Comparing porous to non-porous rubberband
+    11. "Concentration_Gradients"
+            ex1: - Concentration gradient in birfuracting artery
+            ex2: - Pure Diffusion of Passive Scalar in Box
+    12. "Jellyfish_Swimming"
+            ex1: - Bell composed entirely of springs, motion driven by updating
+                   resting lengths sinusoidally
+            ex2: - Bell composed of beams and springs
+            ex3: - Bell motion driven by interpolating between resting lengths
+                   for two phases.
+            NOTE: not entirely debugged, yet. 
 
 -It has the ability to read in Lagrangian Point Data (.vertex), Springs 
 	(.spring), Torsional Springs (.beam),  Target Pts (.target), and 
-	Muscle Pts (.muscle), Tracer Particles (.tracer), Mass Points (.mass), and
-        Porous Media (.porous)! 
+	Muscle Pts (.muscle), 3-Hill-Muscle-Pts (.muscle_Hill), 
+        Tracer Particles (.tracer), Mass Points (.mass), and  Porous Media 
+        (.porous), and initial concentration (.concentration)! 
 
 -It has the capabilitiy for updating model data:
     a. updating target point positions -> Examples in Moving_Rubberband & 
@@ -99,6 +114,9 @@ If you use this code for the purposes of teaching, research, or recreation pleas
 -You can choose to have gravity exerting forced (yes/no) as well as prescribe
     the direction of gravitational influence in any direction you'd wish, 
     in input2d
+
+-You can have a background concentration gradient that is advected and diffused
+    via the background flow.
 
 -It can plot the following things in Matlab, if plot_Matlab flag = 1 in input2d:
     a. Vorticity (colormap) + Lagrangian Pts.
