@@ -78,13 +78,15 @@ target_pts_Yes = model_Info(3);      % Target_Pts: 0 (for no) or 1 (for yes)
 update_Target_Pts = model_Info(4);   % Update_Target_Pts: 0 (for no) or 1 (for yes)
 beams_Yes = model_Info(5);           % Beams: 0 (for no) or 1 (for yes)
 update_Beams_Flag = model_Info(6);   % Update_Beams: 0 (for no) or 1 (for yes)
-muscles_Yes = model_Info(7);         % Muscles: 0 (for no) or 1 (for yes)
-arb_ext_force_Yes = model_Info(8);   % Arbitrary External Force: 0 (for no) or 1 (for yes)
-tracers_Yes = model_Info(9);         % Tracers: 0 (for no) or 1 (for yes)
-mass_Yes = model_Info(10);           % Mass Points: 0 (for no) or 1 (for yes)
-gravity_Yes = model_Info(11);        % Gravity: 0 (for no) or 1 (for yes)
-%NOTE: model_Info(12)/(13) - components of gravity vector
-porous_Yes = model_Info(14);         % Porous Media: 0 (for no) or 1 (for yes)
+muscles_Yes = model_Info(7);         % FV-LT Muscles: 0 (for no) or 1 (for yes)
+hill_3_muscles_Yes = model_Info(8);  % Hill 3-Element Muscle: 0 (for no) or 1 (for yes)
+arb_ext_force_Yes = model_Info(9);   % Arbitrary External Force: 0 (for no) or 1 (for yes)
+tracers_Yes = model_Info(10);        % Tracers: 0 (for no) or 1 (for yes)
+mass_Yes = model_Info(11);           % Mass Points: 0 (for no) or 1 (for yes)
+gravity_Yes = model_Info(12);        % Gravity: 0 (for no) or 1 (for yes)
+%NOTE: model_Info(13)/(14) - components of gravity vector
+porous_Yes = model_Info(15);         % Porous Media: 0 (for no) or 1 (for yes)
+concentration_Yes = model_Info(16);  % Background Concentration Gradient: 0 (for no) or 1 (for yes)
 
 
 
@@ -133,6 +135,16 @@ else
 end
 
 
+% READ IN CONCENTRATION (IF THERE IS A BACKGROUND CONCENTRATION) %
+if ( concentration_Yes == 1 )
+    [C,kDiffusion] = read_In_Concentration_Info(struct_name,Nx);
+        %C:           Initial background concentration
+        %kDiffusion:  Diffusion constant for Advection-Diffusion
+else
+    C = 0; % placeholder for plotting 
+end
+
+
 % READ IN SPRINGS (IF THERE ARE SPRINGS) %
 if ( springs_Yes == 1 )
     springs_info = read_Spring_Points(struct_name);
@@ -160,6 +172,37 @@ if ( muscles_Yes == 1 )
 else
     muscles_info = 0;  %just to pass placeholder into "please_Find_Lagrangian_Forces_On_Eulerian_grid function"
 end
+
+
+
+
+
+
+
+
+
+
+
+% READ IN MUSCLES (IF THERE ARE MUSCLES) %
+if ( hill_3_muscles_Yes == 1 )
+    muscles3_info = read_Hill_3Muscle_Points(struct_name);
+        %         muscles: col 1: MASTER NODE (by lag. discretization)
+        %         col 2: SLAVE NODE (by lag. discretization)
+        %         col 3: length for max. muscle tension
+        %         col 4: muscle constant
+        %         col 5: hill parameter, a
+        %         col 6: hill parameters, b
+        %         col 7: force maximum!
+else
+    muscles3_info = 0;  %just to pass placeholder into "please_Find_Lagrangian_Forces_On_Eulerian_grid function"
+end
+
+
+
+
+
+
+
 
 
 
@@ -246,8 +289,8 @@ end
 if gravity_Yes == 1
     %gravity_Vec(1) = model_Info(12);     % x-Component of Gravity Vector
     %gravity_Vec(2) = model_Info(13);     % y-Component of Gravity Vector
-    xG = model_Info(12);
-    yG = model_Info(13);
+    xG = model_Info(13);
+    yG = model_Info(14);
     normG = sqrt( xG^2 + yG^2 );
     gravity_Info = [gravity_Yes xG/normG yG/normG];
     %   col 1: flag if considering gravity
@@ -284,7 +327,7 @@ vizID = 1; %JUST INITIALIZE BC dumps.visit isn't working correctly...yet
 %Print initializations to .vtk
 vort=zeros(Ny,Nx); uMag=vort; p = vort;  lagPts = [xLag yLag zeros(length(xLag),1)];
 [connectsMat,spacing] = give_Me_Lag_Pt_Connects(ds,xLag,yLag,Nx);
-print_vtk_files(ctsave,vizID,vort,uMag,p,U,V,Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers);
+print_vtk_files(ctsave,vizID,vort,uMag,p,U,V,Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers,concentration_Yes,C);
 fprintf('Current Time(s): %6.6f\n',current_time);
 ctsave = ctsave+1;
 
@@ -314,14 +357,14 @@ while current_time < T_FINAL
        target_info = update_Target_Point_Positions(dt,current_time,target_info); 
     end
     
-    if ( ( update_Beams_Flag == 1 ) && ( Beams_Yes == 1) )
+    if ( ( update_Beams_Flag == 1 ) && ( beams_Yes == 1) )
        beams_info = update_Beams(dt,current_time,beams_info); 
     end
     
     %
     %**************** STEP 2: Calculate Force coming from membrane at half time-step ****************
     %
-    [Fxh, Fyh, F_Mass_Bnd, F_Lag] =    please_Find_Lagrangian_Forces_On_Eulerian_grid(dt, current_time, xLag_h, yLag_h, xLag_P, yLag_P, x, y, grid_Info, model_Info, springs_info, target_info, beams_info, muscles_info, mass_info);
+    [Fxh, Fyh, F_Mass_Bnd, F_Lag] =    please_Find_Lagrangian_Forces_On_Eulerian_grid(dt, current_time, xLag_h, yLag_h, xLag_P, yLag_P, x, y, grid_Info, model_Info, springs_info, target_info, beams_info, muscles_info, muscles3_info, mass_info);
     
     % Once force is calculated, can finish time-step for massive boundary
     if mass_Yes == 1    
@@ -354,6 +397,7 @@ while current_time < T_FINAL
     %
     xLag_P = xLag_h;   % Stores old Lagrangian x-Values (for muscle model)
     yLag_P = yLag_h;   % Stores old Lagrangian y-Values (for muscle model)
+    %Uh, Vh instead of U,V?
     [xLag, yLag] =     please_Move_Lagrangian_Point_Positions(Uh, Vh, xLag, yLag, xLag_h, yLag_h, x, y, dt, grid_Info,porous_Yes);
 
     %NOTE: ONLY SET UP FOR CLOSED SYSTEMS NOW!!!
@@ -367,13 +411,18 @@ while current_time < T_FINAL
     
     % If there are tracers, update tracer positions %
     if tracers_Yes == 1
+        %Uh, Vh instead of U,V?
         [xT, yT] = please_Move_Lagrangian_Point_Positions(Uh, Vh, xT, yT, xT, yT, x, y, dt, grid_Info,0); %0 for always no porous tracers
         tracers(:,2) = xT;
         tracers(:,3) = yT;
     end
     
+    % If there is a background concentration, update concentration-gradient %
+    if concentration_Yes == 1
+       C = please_Update_Adv_Diff_Concentration(C,dt,dx,dy,U,V,kDiffusion); 
+    end
     
-    % Plot Lagrangian/Eulerian Dynamics!
+    % Plot Lagrangian/Eulerian Dynamics! %
     if ( ( mod(cter,pDump) == 0  ) && ( cter >= pDump ) )
         
         %Compute vorticity, uMagnitude
@@ -387,7 +436,7 @@ while current_time < T_FINAL
         
         %Print .vtk files!
         lagPts = [xLag yLag zeros(length(xLag),1)];
-        print_vtk_files(ctsave,vizID,vort,uMag',p',U',V',Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers);
+        print_vtk_files(ctsave,vizID,vort,uMag',p',U',V',Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers,concentration_Yes,C);
         
         %Print Current Time
         fprintf('Current Time(s): %6.6f\n',current_time);
@@ -423,7 +472,7 @@ end %ENDS TIME-STEPPING LOOP
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function print_vtk_files(ctsave,vizID,vort,uMag,p,U,V,Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers)
+function print_vtk_files(ctsave,vizID,vort,uMag,p,U,V,Lx,Ly,Nx,Ny,lagPts,connectsMat,tracers,concentration_Yes,C)
 
 %Give spacing for grid
 dx = Lx/Nx; 
@@ -472,6 +521,11 @@ savevtk_scalar(uMag, uMagfName, 'uMag',dx,dy);
 savevtk_scalar(p, pfName, 'P',dx,dy);
 savevtk_scalar(U, uXName, 'uX',dx,dy);
 savevtk_scalar(V, uYName, 'uY',dx,dy);
+
+if concentration_Yes == 1
+    confName = ['concentration.' strNUM '.vtk'];
+    savevtk_scalar(C, confName, 'Concentration',dx,dy);
+end
 
 %Print VECTOR DATA (i.e., velocity data) to .vtk file
 savevtk_vector(U, V, velocityName, 'u',dx,dy)
@@ -870,6 +924,42 @@ end
 
 
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% FUNCTION: Reads in the diffusion coefficient and initial concentration, C
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [C,kDiff] = read_In_Concentration_Info(struct_name,N)
+
+filename = [struct_name '.concentration'];  %Name of file to read in
+
+strstr = '%f';
+for i=1:N-1
+   strstr = [strstr ' %f'];
+end
+
+fileID = fopen(filename);
+
+    % Read in the file, use 'CollectOutput' to gather all similar data together
+    % and 'CommentStyle' to to end and be able to skip lines in file.
+    C = textscan(fileID,strstr,'CollectOutput',1);
+
+fclose(fileID);        %Close the data file.
+
+con_info = C{1};    %Stores all read in data 
+
+%Store all elements on .concentration file 
+kDiff = con_info(1,1);     %coefficient of diffusion
+C = con_info(2:end,1:end); %initial concentration
+
+
+
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % FUNCTION: Reads in the # of springs and all MASTER NODEs, SLAVE NODEs,
@@ -1064,5 +1154,41 @@ muscles = muscle_info(2:end,1:7);
 %         col 6: hill parameters, b
 %         col 7: force maximum!
     
-    
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% FUNCTION: Reads in the # of muscles and all MASTER NODEs, SLAVE NODEs,
+%           length for max. muscle tension, muscle constant, hill
+%           parameters (a and b), and Force-Max
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function muscles = read_Hill_3Muscle_Points(struct_name)
+
+filename = [struct_name '.muscle'];  %Name of file to read in
+
+fileID = fopen(filename);
+
+    % Read in the file, use 'CollectOutput' to gather all similar data together
+    % and 'CommentStyle' to to end and be able to skip lines in file.
+    C = textscan(fileID,'%f %f %f %f %f %f %f','CollectOutput',1);
+
+fclose(fileID);        %Close the data file.
+
+muscle_info = C{1};    %Stores all read in data in vertices (N+1,2) array
+
+%Store all elements on .muscle file into a matrix starting w/ 2nd row of read in data.
+muscles = muscle_info(2:end,1:7);
+
+%muscles: col 1: MASTER NODE (by lag. discretization)
+%         col 2: SLAVE NODE (by lag. discretization)
+%         col 3: length for max. muscle tension
+%         col 4: muscle constant
+%         col 5: hill parameter, a
+%         col 6: hill parameters, b
+%         col 7: force maximum!
+
+
     
